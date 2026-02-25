@@ -1,8 +1,8 @@
 # morpho-lender
 
-Browse Morpho Blue lending markets, curated vaults, and user positions. Claude Code skill + standalone CLI.
+Browse Morpho Blue lending markets, curated vaults, and user positions. Agent skill + standalone CLI.
 
-## Install as Claude Code Skill
+## Install as Agent Skill
 
 ```bash
 curl -sL https://raw.githubusercontent.com/publu/morpho-lender/master/morpho-lender.md >> ~/.claude/skills/morpho-lender.md
