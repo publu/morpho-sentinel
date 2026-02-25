@@ -1,4 +1,4 @@
-# Morpho Lender
+# Morpho Sentinel
 
 Browse and interact with Morpho Blue lending markets. Check supply APYs, inspect curated vaults, and monitor positions across chains.
 
@@ -30,14 +30,14 @@ curl -s -X POST https://blue-api.morpho.org/graphql \
 ```bash
 curl -s -X POST https://blue-api.morpho.org/graphql \
   -H "Content-Type: application/json" \
-  -d '{"query":"{ vaults(where: { chainId_in: [8453, 1] }) { items { name address asset { symbol } state { totalAssetsUsd apy curator { name } } chain { id } } } }"}'
+  -d '{"query":"{ vaults(where: { chainId_in: [8453, 1] }) { items { name address asset { symbol } state { totalAssetsUsd apy curator } } } }"}'
 ```
 
 **Query user positions:**
 ```bash
 curl -s -X POST https://blue-api.morpho.org/graphql \
   -H "Content-Type: application/json" \
-  -d '{"query":"{ userByAddress(address: \"<ADDRESS>\", chainId: 8453) { positions { market { loanAsset { symbol } collateralAsset { symbol } } supplyAssetsUsd borrowAssetsUsd healthFactor } } }"}'
+  -d '{"query":"{ marketPositions(where: { userAddress_in: [\"<ADDRESS>\"], chainId_in: [8453], supplyShares_gte: 1 }, first: 20) { items { supplyAssetsUsd borrowAssetsUsd healthFactor market { loanAsset { symbol } collateralAsset { symbol } state { supplyApy } } } } }"}'
 ```
 
 ### Useful GraphQL Queries
@@ -52,9 +52,8 @@ curl -s -X POST https://blue-api.morpho.org/graphql \
       state {
         totalAssetsUsd
         apy
-        curator { name }
+        curator
       }
-      chain { id }
     }
   }
 }
@@ -63,9 +62,8 @@ curl -s -X POST https://blue-api.morpho.org/graphql \
 #### Markets for a specific asset
 ```graphql
 {
-  markets(where: { chainId_in: [8453], loanAssetSymbol_in: ["USDC"] }, orderBy: SupplyApy, orderDirection: Desc) {
+  markets(where: { chainId_in: [8453], search: "USDC" }, orderBy: SupplyApy, orderDirection: Desc) {
     items {
-      uniqueKey
       loanAsset { symbol }
       collateralAsset { symbol }
       state {

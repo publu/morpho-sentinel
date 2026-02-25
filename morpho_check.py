@@ -121,10 +121,14 @@ def list_vaults(chain: str = 'base', asset: str | None = None):
 def check_position(address: str, chain: str = 'base'):
     chain_id = CHAIN_IDS.get(chain, 8453)
     query = f'''{{
-        userByAddress(address: "{address.lower()}", chainId: {chain_id}) {{
-            positions {{
+        marketPositions(
+            where: {{ userAddress_in: ["{address.lower()}"], chainId_in: [{chain_id}], supplyShares_gte: 1 }},
+            first: 20
+        ) {{
+            items {{
                 supplyAssetsUsd
                 borrowAssetsUsd
+                healthFactor
                 market {{
                     loanAsset {{ symbol }}
                     collateralAsset {{ symbol }}
@@ -134,16 +138,39 @@ def check_position(address: str, chain: str = 'base'):
         }}
     }}'''
     data = graphql(query)
-    user = data.get('userByAddress')
-    if not user or not user.get('positions'):
-        print(f'No Morpho positions found on {chain.title()}')
-        return
+    items = data.get('marketPositions', {}).get('items', [])
 
-    positions = [p for p in user['positions']
+    positions = [p for p in items
                  if (p.get('supplyAssetsUsd') or 0) > 0.01
                  or (p.get('borrowAssetsUsd') or 0) > 0.01]
+
     if not positions:
-        print(f'No active Morpho positions on {chain.title()}')
+        # Also check borrow-only positions
+        query2 = f'''{{
+            marketPositions(
+                where: {{ userAddress_in: ["{address.lower()}"], chainId_in: [{chain_id}], borrowShares_gte: 1 }},
+                first: 20
+            ) {{
+                items {{
+                    supplyAssetsUsd
+                    borrowAssetsUsd
+                    healthFactor
+                    market {{
+                        loanAsset {{ symbol }}
+                        collateralAsset {{ symbol }}
+                        state {{ supplyApy }}
+                    }}
+                }}
+            }}
+        }}'''
+        data2 = graphql(query2)
+        items2 = data2.get('marketPositions', {}).get('items', [])
+        positions = [p for p in items2
+                     if (p.get('supplyAssetsUsd') or 0) > 0.01
+                     or (p.get('borrowAssetsUsd') or 0) > 0.01]
+
+    if not positions:
+        print(f'No Morpho positions found on {chain.title()}')
         return
 
     print(f'=== Morpho Blue — {chain.title()} ===\n')
@@ -154,10 +181,13 @@ def check_position(address: str, chain: str = 'base'):
         supply = p.get('supplyAssetsUsd') or 0
         borrow = p.get('borrowAssetsUsd') or 0
         apy = (market['state']['supplyApy'] or 0) * 100
+        hf = p.get('healthFactor')
         print(f'  Market:    {loan} / {coll}')
         print(f'  Supplied:  ${supply:,.2f}')
         print(f'  Borrowed:  ${borrow:,.2f}')
         print(f'  APY:       {apy:.2f}%')
+        if hf is not None and borrow > 0:
+            print(f'  Health:    {hf:.4f}')
         print()
 
 
